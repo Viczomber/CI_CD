@@ -1,0 +1,46 @@
+name: test-and-build # Nombre del workflow
+
+on:
+  push:
+    branches: [ master ] # Se ejecuta solo con 'push' a la rama 'master'
+
+permissions:
+  contents: read # Permite leer el código
+  packages: write # IMPORTANTE: Permite escribir el paquete (imagen Docker) en el registro de GitHub
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest # Se ejecuta en un contenedor Linux (Ubuntu)
+
+    steps:
+    - uses: actions/checkout@v3 # Paso 1: Obtiene el código
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11" # Paso 2: Configura Python
+
+    - name: Install dependencies
+      run: pip install -r src/requirements.txt # Paso 3: Instala dependencias
+
+    - name: Check linting
+      run: |
+        pip install ruff # Instala la herramienta de linting
+        ruff check . # Paso 4: Ejecuta el linter
+
+    - name: Test code
+      run: pytest # Paso 5: Ejecuta las pruebas
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }} # Paso 6: Inicia sesión en el registro de contenedores de GitHub
+
+    - name: Build and push
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: ghcr.io/ # Ruta de la imagen
+        context: . # Paso 7: Construye la imagen de Docker y la sube
